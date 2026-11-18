@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>할일 목록 리스트</title>
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --card-bg: #ffffff;
+    --text: #1f2430;
+    --sub: #6b7280;
+    --accent: #4f46e5;
+    --border: #e5e7eb;
+    --done-bg: #f3f4f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Pretendard", "Apple SD Gothic Neo", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px 20px 80px;
+  }
+  .wrap {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  header a {
+    font-size: 13px;
+    color: var(--sub);
+    text-decoration: none;
+  }
+  header h1 {
+    font-size: 24px;
+    margin: 8px 0 0;
+  }
+  .panel {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .input-row input[type="text"] {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .input-row input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .input-row button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .input-row button:hover {
+    opacity: 0.9;
+  }
+  .filters {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .filters button {
+    flex: 1;
+    background: var(--done-bg);
+    border: none;
+    border-radius: 8px;
+    padding: 6px 0;
+    font-size: 13px;
+    color: var(--sub);
+    cursor: pointer;
+  }
+  .filters button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  ul#list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--done-bg);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  li.done span.text {
+    text-decoration: line-through;
+    color: var(--sub);
+  }
+  li input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
+  li span.text {
+    flex: 1;
+    font-size: 14px;
+    word-break: break-all;
+  }
+  li button.del {
+    background: none;
+    border: none;
+    color: var(--sub);
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  li button.del:hover {
+    color: #e11d48;
+  }
+  .empty {
+    text-align: center;
+    color: var(--sub);
+    font-size: 13px;
+    padding: 24px 0;
+  }
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--sub);
+  }
+  .footer-row button {
+    background: none;
+    border: none;
+    color: var(--sub);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <a href="https://fatemap6833.github.io/">← 실습 자료 모음으로</a>
+    <h1>📝 할일 목록 리스트</h1>
+  </header>
+
+  <div class="panel">
+    <div class="input-row">
+      <input type="text" id="input" placeholder="할 일을 입력하세요" maxlength="100">
+      <button id="addBtn">추가</button>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">전체</button>
+      <button class="filter-btn" data-filter="active">진행중</button>
+      <button class="filter-btn" data-filter="done">완료</button>
+    </div>
+
+    <ul id="list"></ul>
+    <div class="empty" id="emptyMsg" style="display:none;">할 일이 없습니다</div>
+
+    <div class="footer-row">
+      <span id="countMsg"></span>
+      <button id="clearDoneBtn">완료 항목 지우기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = "todo-items";
+  let items = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  let filter = "all";
+
+  const listEl = document.getElementById("list");
+  const inputEl = document.getElementById("input");
+  const emptyMsg = document.getElementById("emptyMsg");
+  const countMsg = document.getElementById("countMsg");
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+
+  function render() {
+    const filtered = items.filter(it => {
+      if (filter === "active") return !it.done;
+      if (filter === "done") return it.done;
+      return true;
+    });
+
+    listEl.innerHTML = "";
+    filtered.forEach(it => {
+      const li = document.createElement("li");
+      if (it.done) li.classList.add("done");
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = it.done;
+      checkbox.addEventListener("change", () => {
+        it.done = checkbox.checked;
+        save();
+        render();
+      });
+
+      const span = document.createElement("span");
+      span.className = "text";
+      span.textContent = it.text;
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "del";
+      delBtn.textContent = "✕";
+      delBtn.addEventListener("click", () => {
+        items = items.filter(x => x.id !== it.id);
+        save();
+        render();
+      });
+
+      li.appendChild(checkbox);
+      li.appendChild(span);
+      li.appendChild(delBtn);
+      listEl.appendChild(li);
+    });
+
+    emptyMsg.style.display = filtered.length === 0 ? "block" : "none";
+
+    const remain = items.filter(it => !it.done).length;
+    countMsg.textContent = `전체 ${items.length}개 · 남은 일 ${remain}개`;
+  }
+
+  function addItem() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+    items.push({ id: Date.now(), text, done: false });
+    inputEl.value = "";
+    save();
+    render();
+  }
+
+  document.getElementById("addBtn").addEventListener("click", addItem);
+  inputEl.addEventListener("keydown", e => {
+    if (e.key === "Enter") addItem();
+  });
+
+  document.querySelectorAll(".filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      filter = btn.dataset.filter;
+      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      render();
+    });
+  });
+
+  document.getElementById("clearDoneBtn").addEventListener("click", () => {
+    items = items.filter(it => !it.done);
+    save();
+    render();
+  });
+
+  render();
+</script>
+
+</body>
+</html>
